@@ -1,14 +1,151 @@
-<!doctype html>
+
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Hello World</title>
-  <link href='/style.css' rel='stylesheet'>
+  <title>Parkinson Symptom Tracker</title>
+  <script src="https://cdn.tailwindcss.com?plugins=forms"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
-<body>
-  <h1>Hello, world!</h1>
-  <button onclick="console.log('hello');">Press me</button>
-  <script defer type="text/javascript" src="/main.js"></script>
+<body class="bg-slate-100 min-h-screen flex items-center justify-center">
+
+  <div class="w-full max-w-xl bg-white rounded-xl shadow p-6 space-y-6">
+    <h1 class="text-2xl font-extrabold text-slate-800">Parkinson Symptom Tracker</h1>
+    <p class="text-slate-500 text-sm">Daily symptom progression record (0 = none, 10 = severe)</p>
+
+    <!-- Date -->
+    <div>
+      <label class="block text-sm font-bold text-slate-700 mb-1">Date</label>
+      <input type="date" id="date" class="w-full rounded-lg" />
+    </div>
+
+    <!-- Tremor -->
+    <div>
+      <label class="block text-sm font-bold text-slate-700">Tremor: <span id="tremorVal">5</span>/10</label>
+      <input type="range" min="0" max="10" value="5" id="tremor" class="w-full" />
+    </div>
+
+    <!-- Rigidity -->
+    <div>
+      <label class="block text-sm font-bold text-slate-700">Rigidity: <span id="rigidityVal">5</span>/10</label>
+      <input type="range" min="0" max="10" value="5" id="rigidity" class="w-full" />
+    </div>
+
+    <!-- Bradykinesia -->
+    <div>
+      <label class="block text-sm font-bold text-slate-700">Bradykinesia: <span id="bradyVal">5</span>/10</label>
+      <input type="range" min="0" max="10" value="5" id="brady" class="w-full" />
+    </div>
+
+    <!-- Postural Instability -->
+    <div>
+      <label class="block text-sm font-bold text-slate-700">Postural Instability: <span id="postureVal">5</span>/10</label>
+      <input type="range" min="0" max="10" value="5" id="posture" class="w-full" />
+    </div>
+
+    <!-- Notes -->
+    <div>
+      <label class="block text-sm font-bold text-slate-700 mb-1">Notes</label>
+      <textarea id="notes" rows="3" class="w-full rounded-lg" placeholder="Medication, sleep, special events..."></textarea>
+    </div>
+
+    <!-- Buttons -->
+    <button onclick="saveData()" class="w-full py-3 rounded-lg bg-emerald-500 text-white font-bold hover:bg-emerald-600">
+      Save Record
+    </button>
+
+    <button onclick="clearAll()" class="w-full py-3 rounded-lg border border-red-400 text-red-500 font-bold hover:bg-red-50">
+      Clear All Records
+    </button>
+
+    <p id="status" class="text-sm text-center text-slate-500"></p>
+
+    <!-- Chart -->
+    <div class="pt-6 border-t">
+      <h2 class="text-lg font-bold text-slate-700 mb-2">Symptom Trend</h2>
+      <canvas id="chart" height="200"></canvas>
+    </div>
+  </div>
+
+<script>
+  let chart;
+
+  const bindSlider = (id, labelId) => {
+    const slider = document.getElementById(id);
+    const label = document.getElementById(labelId);
+    label.textContent = slider.value;
+    slider.oninput = () => label.textContent = slider.value;
+  };
+
+  bindSlider('tremor', 'tremorVal');
+  bindSlider('rigidity', 'rigidityVal');
+  bindSlider('brady', 'bradyVal');
+  bindSlider('posture', 'postureVal');
+
+  function renderChart() {
+    const records = JSON.parse(localStorage.getItem('parkinsonRecords') || '[]');
+    const labels = records.map(r => r.date);
+    const ctx = document.getElementById('chart').getContext('2d');
+
+    if (chart) chart.destroy();
+
+    chart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [
+          {
+            label: 'UPDRS Total (avg)',
+            data: records.map(r => (r.tremor + r.rigidity + r.bradykinesia + r.posturalInstability) / 4),
+            borderDash: [5, 5],
+            borderWidth: 3
+          },
+          { label: 'Tremor', data: records.map(r => r.tremor) },
+          { label: 'Rigidity', data: records.map(r => r.rigidity) },
+          { label: 'Bradykinesia', data: records.map(r => r.bradykinesia) },
+          { label: 'Instability', data: records.map(r => r.posturalInstability) }
+        ]
+      },
+      options: {
+        responsive: true,
+        scales: { y: { min: 0, max: 10 } }
+      }
+    });
+  }
+
+  function saveData() {
+    const data = {
+      date: document.getElementById('date').value,
+      tremor: Number(tremor.value),
+      rigidity: Number(rigidity.value),
+      bradykinesia: Number(brady.value),
+      posturalInstability: Number(posture.value),
+      notes: notes.value
+    };
+
+    if (!data.date) {
+      status.textContent = 'Please select a date.';
+      return;
+    }
+
+    const records = JSON.parse(localStorage.getItem('parkinsonRecords') || '[]');
+    records.push(data);
+    localStorage.setItem('parkinsonRecords', JSON.stringify(records));
+
+    status.textContent = 'Record saved successfully.';
+    renderChart();
+  }
+
+  function clearAll() {
+    if (!confirm('All records will be deleted. Continue?')) return;
+    localStorage.removeItem('parkinsonRecords');
+    if (chart) chart.destroy();
+    chart = null;
+    status.textContent = 'All records cleared.';
+  }
+
+  renderChart();
+</script>
 </body>
 </html>
